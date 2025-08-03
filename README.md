@@ -92,7 +92,7 @@ Weqaya_dashboard/
 ---
 
 ##  Support
-Contact Youussef Hesham Jadallah at youssefheshamjadallah@gmail.com].
+Contact Youussef Hesham Jadallah at [youssefheshamjadallah@gmail.com].
 
 ---
 
