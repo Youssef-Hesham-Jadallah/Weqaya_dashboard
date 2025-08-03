@@ -1,97 +1,113 @@
-Weqaya Dashboard - Najran Health Authority
-An interactive, fully Arabic-compatible Streamlit dashboard designed for the Weqaya Public Health Authority in Najran. It offers visual exploration and analysis of key health metrics across months and quarters in 2025.
+# 🌟 Weqaya Dashboard - Najran Health Authority
 
-📌 Highlights
+A fully interactive, Arabic-compatible Streamlit dashboard for the Weqaya Public Health Authority in Najran. It offers deep insights into 2025 health metrics across months and quarters with real-time updates.
 
-Dynamic Visualizations: Line charts, bar graphs, 3D plots, pie charts, and heatmaps.
-Health KPIs: Cross-border travelers, Umrah & Hajj pilgrims, clinic visits, emergency cases, and vaccinations.
-Quarterly Analysis: Tabbed insights per quarter with editable data forms for Q3 & Q4.
-RTL Support: Fully right-to-left layout optimized for Arabic text and users.
-Modern UI: Custom CSS with floating metrics, animated components, and responsive design.
+---
 
+## 🎯 Overview
 
-🚀 Tech Stack
+This dashboard empowers health officials with visual analytics on key indicators, featuring a modern UI and RTL support for Arabic users.
 
+---
 
+## 🚀 Key Features
 
-Tool
-Description
+- **📊 Dynamic Visuals**: Line charts, bar graphs, 3D plots, pie charts, and heatmaps.
+- **🏥 Core Metrics**: Track travelers, Umrah/Hajj pilgrims, clinic visits, emergencies, and vaccinations.
+- **📅 Quarterly Data**: Editable forms for Q3 & Q4 with tabbed quarterly insights.
+- **🌐 RTL Optimization**: Right-to-left layout tailored for Arabic text.
+- **🎨 Sleek Design**: Custom CSS with animations, floating metrics, and responsiveness.
 
+---
 
+## 🛠️ Tech Stack
 
-Streamlit
-Interactive web app framework
+| Tool         | Purpose                        |
+|--------------|--------------------------------|
+| **Streamlit** | Web app framework             |
+| **Plotly**    | Advanced visualizations       |
+| **Pandas**    | Data handling                 |
+| **NumPy**     | Numerical computations        |
+| **CSS**       | Custom styling                |
 
+---
 
-Plotly
-Data visualization library
+## 💻 Getting Started
 
+### Prerequisites
+- Python 3.8 or higher
 
-Pandas
-Data manipulation
+### Installation
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/Youussef-Hesham-Jadallah/Weqaya_dashboard.git
+   cd Weqaya_dashboard
+   ```
 
+2. **Install Dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-NumPy
-Numerical operations
+3. **Run the Dashboard**
+   ```bash
+   streamlit run end.py
+   ```
 
+4. **Open in Browser**
+   Navigate to `http://localhost:8501`.
 
-CSS
-Fully custom theme styling
+---
 
-
-
-💻 Run Locally
-1. Clone the Repository
-git clone https://github.com/Youussef-Hesham-Jadallah/Weqaya_dashboard.git
-cd Weqaya_dashboard
-
-2. Install Dependencies
-Ensure Python 3.8+ is installed, then run:
-pip install -r requirements.txt
-
-3. Launch the Dashboard
-Start the app with:
-streamlit run end.py
-
-4. Access
-Open your browser at http://localhost:8501.
-
-📋 Requirements
-Install the following (listed in requirements.txt):
+## 📋 Requirements
+Check `requirements.txt` for:
+```
 streamlit==1.38.0
 pandas==2.2.2
 numpy==1.26.4
 plotly==5.22.0
+```
 
+---
 
-🎨 Usage
+## 🔍 Usage
 
-View Metrics: Check key indicators like traveler counts and clinic visits on the homepage.
-Analyze Data: Explore monthly/quarterly trends via visualizations and tabs.
-Update Data: Use Q3 & Q4 forms to input new data and refresh insights.
-Advanced Insights: Access predictions and correlation analysis in the analytics section.
+- **📋 View Metrics**: See real-time stats on the homepage.
+- **📉 Analyze Trends**: Explore monthly/quarterly data via charts.
+- **✏️ Update Data**: Modify Q3 & Q4 data for live updates.
+- **🔎 Advanced Analytics**: Access predictions and correlations.
 
+---
 
-📂 Folder Structure
+## 📂 Project Structure
+```
 Weqaya_dashboard/
-├── end.py              # Main Streamlit app
-├── requirements.txt    # Dependencies
+├── end.py              # Main application file
+├── requirements.txt    # Dependency list
 ├── README.md           # Project documentation
-└── images/             # Assets (e.g., favicon)
+└── images/             # Asset directory
+```
 
+---
 
-🤝 Contributing
+## 🤝 How to Contribute
 
-Fork the repo.
-Create a branch (git checkout -b feature/your-feature).
-Commit changes (git commit -m "Add your feature").
-Push and open a PR (git push origin feature/your-feature).Follow PEP 8 and add documentation.
+1. Fork the repository.
+2. Create a branch: `git checkout -b feature/your-feature`.
+3. Commit changes: `git commit -m "Add your feature"`.
+4. Push and submit a PR: `git push origin feature/your-feature`.
+- Adhere to PEP 8 and include documentation.
 
+---
 
-📜 License
-MIT License - See LICENSE for details.
+## 📜 License
+[MIT License](LICENSE)
 
-📧 Contact
-For support, reach out to Youussef Hesham Jadallah at [your-email@example.com].
+---
 
-Developed by Youussef Hesham Jadallah, 2025
+## 📧 Support
+Contact Youussef Hesham Jadallah at [your-email@example.com].
+
+---
+
+*Developed with 💙 by Youussef Hesham Jadallah, August 2025*
