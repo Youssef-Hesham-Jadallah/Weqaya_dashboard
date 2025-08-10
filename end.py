@@ -4,35 +4,46 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
+from sklearn.cluster import KMeans
 
-# Page setup
 st.set_page_config(layout="wide", page_title="لوحة معلومات هيئة الصحة العامة بنجران", page_icon="images/R (1).png")
 
-# Preparing the data from the attached file
+# Initialize session state for health data if not already set
 if 'health_df' not in st.session_state:
     st.session_state.health_df = pd.DataFrame({
         'الشهر': ['يناير 2025', 'فبراير 2025', 'مارس 2025', 'أبريل 2025', 'مايو 2025', 'يونيو 2025',
                   'يوليو 2025', 'أغسطس 2025', 'سبتمبر 2025', 'أكتوبر 2025', 'نوفمبر 2025', 'ديسمبر 2025'],
-        'عدد العابرين': [185726, 200682, 163291, 106674, 86673, 104816, 0, 0, 0, 0, 0, 0],
-        'عدد المعتمرين': [88806, 120930, 96027, 4316, 0, 17697, 0, 0, 0, 0, 0, 0],
+        'عدد العابرين الوديعة': [181780, 197288, 160940, 103974, 83564, 101927, 152316, 28219, 0, 0, 0, 0],
+        'عدد العابرين الخضراء': [766, 671, 722, 744, 780, 674, 761, 115, 0, 0, 0, 0],
+        'عدد العابرين المطار': [3180, 2723, 1629, 1956, 2329, 2215, 3144, 625, 0, 0, 0, 0],
+        'عدد العابرين': [185726, 200682, 163291, 106674, 86673, 104816, 156221, 28959, 0, 0, 0, 0],
+        'عدد المعتمرين': [88806, 120930, 96027, 4316, 0, 17697, 49127, 12116, 0, 0, 0, 0],
         'عدد الحجاج': [0, 0, 0, 0, 12951, 0, 0, 0, 0, 0, 0, 0],
-        'زيارات العيادة': [2490, 2129, 1640, 1362, 1223, 1015, 0, 0, 0, 0, 0, 0],
-        'حالات النقل الإسعافي وحالات الإشتباه': [7, 8, 3, 5, 21, 11, 0, 0, 0, 0, 0, 0],
-        'الجولات الإشرافية': [2, 3, 2, 1, 2, 2, 0, 0, 0, 0, 0, 0],
-        'شلل الأطفال': [185726, 200682, 163291, 106674, 86673, 104816, 0, 0, 0, 0, 0, 0],
-        'مخية شوكية': [88806, 120930, 96027, 4316, 0, 17697, 0, 0, 0, 0, 0, 0],
-        'ثلاثي فيروسي': [2490, 2129, 1640, 1362, 1223, 1015, 0, 0, 0, 0, 0, 0],
-        'مجموع التطعيمات': [104730, 109856, 67885, 53470, 62147, 62745, 0, 0, 0, 0, 0, 0],
-        'المجموع الكلي': [381761, 433606, 328847, 165829, 163017, 186286, 0, 0, 0, 0, 0, 0]
+        'عيادة الطبيب الوديعة': [877, 664, 468, 573, 565, 549, 747, 130, 0, 0, 0, 0],
+        'عيادة الطبيب المطار': [1613, 1465, 1172, 789, 658, 466, 501, 91, 0, 0, 0, 0],
+        'زيارات العيادة': [2490, 2129, 1640, 1362, 1223, 1015, 1248, 221, 0, 0, 0, 0],
+        'النقل الإسعافي المطار': [1, 2, 1, 1, 2, 1, 1, 0, 0, 0, 0, 0],
+        'النقل الإسعافي الوديعة': [6, 6, 2, 4, 14, 10, 7, 6, 0, 0, 0, 0],
+        'حالات النقل الإسعافي': [7, 8, 3, 5, 16, 11, 8, 6, 0, 0, 0, 0],
+        'حالات الإشتباه': [0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0],
+        'الجولات الإشرافية': [2, 3, 2, 1, 2, 2, 2, 2, 0, 0, 0, 0],
+        'شلل الأطفال': [57838, 63979, 37725, 28915, 36680, 38330, 68770, 14600, 0, 0, 0, 0],
+        'مخية شوكية': [34487, 29023, 19789, 18200, 17078, 20135, 13733, 2285, 0, 0, 0, 0],
+        'ثلاثي فيروسي': [12405, 16854, 10371, 6355, 8389, 4280, 5634, 1672, 0, 0, 0, 0],
+        'مجموع التطعيمات': [104730, 109856, 67885, 53470, 62147, 62745, 88137, 18557, 0, 0, 0, 0],
+        'المجموع الكلي': [674714, 746283, 561667, 327339, 313071, 354873, 540359, 107606, 0, 0, 0, 0]
     })
 
-# Initialize the session state
+# Add combined column for emergency and suspicion cases
+st.session_state.health_df['حالات النقل الإسعافي وحالات الإشتباه'] = st.session_state.health_df['حالات النقل الإسعافي'] + st.session_state.health_df['حالات الإشتباه']
+
+# Initialize session state for auto-refresh settings
 if 'auto_refresh' not in st.session_state:
     st.session_state.auto_refresh = False
 if 'refresh_rate' not in st.session_state:
     st.session_state.refresh_rate = 30
 
-# Analysis Settings
+# Define default analysis settings
 analysis_type = "شامل"
 time_period = "جميع الأشهر"
 viz_type = ["خطي", "أعمدة", "دائري"]
@@ -40,13 +51,21 @@ show_predictions = True
 show_correlations = True
 show_clusters = False
 
-# Quarterly Data Update Function
+# Function to update quarterly data in the DataFrame
 def update_quarter_data(quarter, index, new_data):
+    st.session_state.health_df.at[index, 'عدد العابرين الوديعة'] = new_data['عدد العابرين الوديعة']
+    st.session_state.health_df.at[index, 'عدد العابرين الخضراء'] = new_data['عدد العابرين الخضراء']
+    st.session_state.health_df.at[index, 'عدد العابرين المطار'] = new_data['عدد العابرين المطار']
     st.session_state.health_df.at[index, 'عدد العابرين'] = new_data['عدد العابرين']
     st.session_state.health_df.at[index, 'عدد المعتمرين'] = new_data['عدد المعتمرين']
     st.session_state.health_df.at[index, 'عدد الحجاج'] = new_data['عدد الحجاج']
+    st.session_state.health_df.at[index, 'عيادة الطبيب الوديعة'] = new_data['عيادة الطبيب الوديعة']
+    st.session_state.health_df.at[index, 'عيادة الطبيب المطار'] = new_data['عيادة الطبيب المطار']
     st.session_state.health_df.at[index, 'زيارات العيادة'] = new_data['زيارات العيادة']
-    st.session_state.health_df.at[index, 'حالات النقل الإسعافي وحالات الإشتباه'] = new_data['حالات النقل الإسعافي وحالات الإشتباه']
+    st.session_state.health_df.at[index, 'النقل الإسعافي المطار'] = new_data['النقل الإسعافي المطار']
+    st.session_state.health_df.at[index, 'النقل الإسعافي الوديعة'] = new_data['النقل الإسعافي الوديعة']
+    st.session_state.health_df.at[index, 'حالات النقل الإسعافي'] = new_data['حالات النقل الإسعافي']
+    st.session_state.health_df.at[index, 'حالات الإشتباه'] = new_data['حالات الإشتباه']
     st.session_state.health_df.at[index, 'الجولات الإشرافية'] = new_data['الجولات الإشرافية']
     st.session_state.health_df.at[index, 'شلل الأطفال'] = new_data['شلل الأطفال']
     st.session_state.health_df.at[index, 'مخية شوكية'] = new_data['مخية شوكية']
@@ -55,11 +74,13 @@ def update_quarter_data(quarter, index, new_data):
     st.session_state.health_df.at[index, 'مجموع التطعيمات'] = total_vaccinations
     st.session_state.health_df.at[index, 'المجموع الكلي'] = (
         new_data['عدد العابرين'] + new_data['عدد المعتمرين'] + new_data['عدد الحجاج'] +
-        new_data['زيارات العيادة'] + new_data['حالات النقل الإسعافي وحالات الإشتباه'] +
+        new_data['زيارات العيادة'] + new_data['حالات النقل الإسعافي'] + new_data['حالات الإشتباه'] +
         new_data['الجولات الإشرافية'] + total_vaccinations
     )
+    # Update combined column
+    st.session_state.health_df.at[index, 'حالات النقل الإسعافي وحالات الإشتباه'] = new_data['حالات النقل الإسعافي'] + new_data['حالات الإشتباه']
 
-# Custom CSS
+# Custom CSS for styling
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@200;300;400;600;700;800&family=Amiri:wght@400;700&display=swap');
@@ -255,48 +276,30 @@ st.markdown("""
     margin: 1rem 0;
     animation: dividerGlow 3s ease-in-out infinite;
 }
-/* Custom styling for Streamlit tabs */
 .stTabs [data-baseweb="tab"] {
-    background-color: #1C2526; /* Default tab background */
-    color: var(--text-secondary); /* Default text color */
-    border: none; /* Remove any border */
+    background-color: #1C2526;
+    color: var(--text-secondary);
+    border: none;
     padding: 10px 20px;
     margin: 0 5px;
     border-radius: var(--radius-md);
     transition: all 0.3s ease;
-    text-decoration: none; /* Remove underline */
+    text-decoration: none;
 }
-
-/* Style for the active tab */
 .stTabs [data-baseweb="tab"][aria-selected="true"] {
-    background-color: #80ED99; /* Green color for active tab */
-    color: #0A0A0A; /* Dark text for contrast */
+    background-color: #80ED99;
+    color: #0A0A0A;
     font-weight: 600;
     box-shadow: var(--shadow-glow);
-    border: none; /* Ensure no border */
-    outline: none; /* Remove outline */
-    text-decoration: none; /* Remove underline */
+    border: none;
+    outline: none;
+    text-decoration: none;
 }
-
-/* Optional: Use off-white for active tab (uncomment to use instead of green) */
-/*
-.stTabs [data-baseweb="tab"][aria-selected="true"] {
-    background-color: #F5F5F5; /* Off-white color */
-    color: #1C2526; /* Dark text for contrast */
-    font-weight: 600;
-    box-shadow: var(--shadow-glow);
-    border: none; /* Ensure no border */
-    outline: none; /* Remove outline */
-    text-decoration: none; /* Remove underline */
-}
-*/
-
-/* Remove any default Streamlit red underline or border */
 .stTabs [data-baseweb="tab-list"] {
-    border-bottom: none; /* Remove bottom border */
+    border-bottom: none;
 }
 .stTabs [data-baseweb="tab-panel"] {
-    border: none; /* Remove panel border */
+    border: none;
 }
 @keyframes dividerGlow {
     0%, 100% { box-shadow: 0 0 5px rgba(34, 87, 122, 0.5); }
@@ -363,25 +366,31 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# header
+# Header section
 st.markdown("""
 <div class="main-header">
     <h1 style="font-size: 3rem; font-weight: 800; color: white;">
-         لوحة معلومات هيئة الصحة العامة بنجران
+         وقاية
     </h1>
+    <h5 style="font-size: 3rem; font-weight: 800; color: white;">
+         لوحة معلومات هيئة الصحة العامة بمنطقة نجران
+    </h5>
     <p style="font-size: 1.5rem; color: var(--text-secondary);">
         تحليلات متقدمة للأداء الصحي في المنافذ - 2025
     </p>
 </div>
 """, unsafe_allow_html=True)
 
-# Floating statistics
+# Floating stats
 st.markdown(f"""
 <div class="floating-stats" style="position: fixed; top: 100px; right: 20px; background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1.5rem; box-shadow: var(--shadow-glow); z-index: 1000; animation: floatUpDown 4s ease-in-out infinite; font-size: 1rem; color: var(--text-secondary);">
      إحصائيات سريعة<br>
      المجموع الكلي: {st.session_state.health_df['المجموع الكلي'].sum():,}<br>
      التطعيمات: {st.session_state.health_df['مجموع التطعيمات'].sum():,}<br>
-     العابرين: {st.session_state.health_df['عدد العابرين'].sum():,}
+     العابرين: {st.session_state.health_df['عدد العابرين'].sum():,}<br>
+     العابرين الوديعة: {st.session_state.health_df['عدد العابرين الوديعة'].sum():,}<br>
+     العابرين الخضراء: {st.session_state.health_df['عدد العابرين الخضراء'].sum():,}<br>
+     العابرين المطار: {st.session_state.health_df['عدد العابرين المطار'].sum():,}
 </div>
 <style>
 @keyframes floatUpDown {{
@@ -391,7 +400,7 @@ st.markdown(f"""
 </style>
 """, unsafe_allow_html=True)
 
-# Filtering data based on selections
+# Analysis settings
 filtered_df = st.session_state.health_df
 if time_period != "جميع الأشهر":
     if time_period == "الربع الأول":
@@ -406,13 +415,15 @@ if time_period != "جميع الأشهر":
         month = st.selectbox("اختر الشهر:", st.session_state.health_df['الشهر'].unique())
         filtered_df = st.session_state.health_df[st.session_state.health_df['الشهر'] == month]
 
-# Key indicators
+# Display analysis type
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 st.markdown('<div class="chart-container">', unsafe_allow_html=True)
 st.markdown('<div class="chart-title"> المؤشرات الرئيسية</div>', unsafe_allow_html=True)
 
+# Create columns for key metrics
 col1, col2, col3, col4 = st.columns(4)
 
+# Displaying key metrics
 with col1:
     st.markdown(f"""
     <div class="metric-card">
@@ -443,7 +454,7 @@ with col3:
 with col4:
     st.markdown(f"""
     <div class="metric-card">
-        <div class="metric-value">{filtered_df['حالات النقل الإسعافي وحالات الإشتباه'].sum():,}</div>
+        <div class="metric-value">{filtered_df['حالات النقل الإسعافي'].sum():,}</div>
         <div class="metric-label">حالات الطوارئ</div>
         <div class="metric-status danger-badge">يحتاج متابعة</div>
     </div>
@@ -451,7 +462,7 @@ with col4:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Graphical analysis of the total sum
+# Displaying total monthly sum
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 st.markdown('<div class="chart-container">', unsafe_allow_html=True)
 st.markdown('<div class="chart-title"> تحليل المجموع الكلي</div>', unsafe_allow_html=True)
@@ -465,7 +476,7 @@ with col1:
         x=filtered_df['الشهر'],
         y=filtered_df['المجموع الكلي'],
         name='المجموع الكلي',
-        marker_color='#22577A',
+        marker_color='#1A3D5C',
         text=filtered_df['المجموع الكلي'].apply(lambda x: f'{x:,}' if x > 0 else '0'),
         textposition='auto',
         hovertemplate='الشهر: %{x}<br>المجموع الكلي: %{y:,}<extra></extra>'
@@ -480,6 +491,7 @@ with col1:
         transition={'duration': 1000, 'easing': 'cubic-in-out'}
     )
     st.plotly_chart(fig_total_monthly, use_container_width=True)
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 
 with col2:
     st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> المجموع الكلي لكل ربع</h4>', unsafe_allow_html=True)
@@ -524,7 +536,7 @@ with col2:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Analysis of vaccinations
+# تحليل التطعيمات
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 st.markdown('<div class="chart-container">', unsafe_allow_html=True)
 st.markdown('<div class="chart-title"> تحليل التطعيمات</div>', unsafe_allow_html=True)
@@ -626,7 +638,7 @@ with col3:
         z=vacc_matrix,
         x=filtered_vacc_df['الشهر'],
         y=['شلل الأطفال', 'مخية شوكية', 'ثلاثي فيروسي'],
-        colorscale=[[0, '#BFF8D4'], [0.5, '#57CC99'], [1, '#22577A']],
+        colorscale=[[0, '#8CCCA4'], [0.5, '#3D8F6B'], [1, '#1A3D5C']],
         text=vacc_matrix,
         texttemplate="%{text:,}",
         textfont={"size": 16, "color": "white"},
@@ -644,7 +656,6 @@ with col3:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Emergency analysis and medical visits
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 st.markdown('<div class="chart-container">', unsafe_allow_html=True)
 st.markdown('<div class="chart-title">تحليل الطوارئ والزيارات الطبية</div>', unsafe_allow_html=True)
@@ -685,17 +696,17 @@ with col1:
 
 with col2:
     st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> حالات النقل الإسعافي</h4>', unsafe_allow_html=True)
-    filtered_emergency_df = filtered_df[filtered_df['حالات النقل الإسعافي وحالات الإشتباه'].notnull()]
+    filtered_emergency_df = filtered_df[filtered_df['حالات النقل الإسعافي'].notnull()]
     fig_emergency = go.Figure()
     fig_emergency.add_trace(go.Scatter(
         x=filtered_emergency_df['الشهر'],
-        y=filtered_emergency_df['حالات النقل الإسعافي وحالات الإشتباه'],
+        y=filtered_emergency_df['حالات النقل الإسعافي'],
         mode='lines+markers',
         fill='tonexty',
         name='النقل الإسعافي',
         line=dict(color='#BFF8D4', width=4),
         marker=dict(size=15, color='#57CC99'),
-        text=filtered_emergency_df['حالات النقل الإسعافي وحالات الإشتباه'].apply(lambda x: f'{x}' if x > 0 else '0'),
+        text=filtered_emergency_df['حالات النقل الإسعافي'].apply(lambda x: f'{x}' if x > 0 else '0'),
         textposition='top center',
         hovertemplate='الشهر: %{x}<br>الحالات: %{y}<extra></extra>'
     ))
@@ -705,13 +716,13 @@ with col2:
         font_family='Cairo',
         font_color='var(--text-primary)',
         height=600,
-        yaxis=dict(range=[0, max(25, filtered_emergency_df['حالات النقل الإسعافي وحالات الإشتباه'].max() * 1.2)])
+        yaxis=dict(range=[0, max(25, filtered_emergency_df['حالات النقل الإسعافي'].max() * 1.2)])
     )
     st.plotly_chart(fig_emergency, use_container_width=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Quarterly analyses
+# Quarterly analysis
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 st.markdown('<div class="chart-container">', unsafe_allow_html=True)
 st.markdown('<div class="chart-title"> تحليلات الأرباع</div>', unsafe_allow_html=True)
@@ -772,12 +783,12 @@ with q1_tab:
             secondary_y=False,
         )
         fig_q1_medical.add_trace(
-            go.Scatter(x=q1_df['الشهر'], y=q1_df['حالات النقل الإسعافي وحالات الإشتباه'], 
+            go.Scatter(x=q1_df['الشهر'], y=q1_df['حالات النقل الإسعافي'], 
                       mode='lines+markers',
                       name='النقل الإسعافي',
                       line=dict(color='#BFF8D4', width=3),
                       marker=dict(size=10, color='#80ED99'),
-                      text=q1_df['حالات النقل الإسعافي وحالات الإشتباه'].apply(lambda x: f'{x}' if x > 0 else '0'),
+                      text=q1_df['حالات النقل الإسعافي'].apply(lambda x: f'{x}' if x > 0 else '0'),
                       textposition='top center'),
             secondary_y=True,
         )
@@ -948,19 +959,19 @@ with q2_tab:
             transition={'duration': 1500, 'easing': 'cubic-in-out'}
         )
         st.plotly_chart(fig_q2_comparison, use_container_width=True)
-    
+
     with col2:
         st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> حالات النقل الإسعافي - الربع الثاني</h4>', unsafe_allow_html=True)
         fig_q2_emergency = go.Figure()
         fig_q2_emergency.add_trace(go.Scatter(
             x=q2_df['الشهر'],
-            y=q2_df['حالات النقل الإسعافي وحالات الإشتباه'],
+            y=q2_df['حالات النقل الإسعافي'],
             mode='lines+markers',
             fill='tonexty',
             name='النقل الإسعافي',
             line=dict(color='#57CC99', width=4),
             marker=dict(size=15, color='#80ED99'),
-            text=q2_df['حالات النقل الإسعافي وحالات الإشتباه'].apply(lambda x: f'{x}' if x > 0 else '0'),
+            text=q2_df['حالات النقل الإسعافي'].apply(lambda x: f'{x}' if x > 0 else '0'),
             textposition='top center',
             hovertemplate='الشهر: %{x}<br>النقل الإسعافي: %{y}<extra></extra>'
         ))
@@ -970,10 +981,10 @@ with q2_tab:
             font_family='Cairo',
             font_color='var(--text-primary)',
             height=600,
-            yaxis=dict(range=[0, max(25, q2_df['حالات النقل الإسعافي وحالات الإشتباه'].max() * 1.2)])
+            yaxis=dict(range=[0, max(25, q2_df['حالات النقل الإسعافي'].max() * 1.2)])
         )
         st.plotly_chart(fig_q2_emergency, use_container_width=True)
-    
+
     st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> خريطة حرارية للتطعيمات - الربع الثاني</h4>', unsafe_allow_html=True)
     vacc_matrix = np.array([
         q2_df['شلل الأطفال'].values,
@@ -984,7 +995,7 @@ with q2_tab:
         z=vacc_matrix,
         x=q2_df['الشهر'],
         y=['شلل الأطفال', 'مخية شوكية', 'ثلاثي فيروسي'],
-        colorscale=[[0, '#BFF8D4'], [0.5, '#57CC99'], [1, '#22577A']],
+        colorscale=[[0, "#42AC69"], [0.5, "#3C8B69"], [1, '#22577A']],
         text=vacc_matrix,
         texttemplate="%{text:,}",
         textfont={"size": 16, "color": "white"},
@@ -999,7 +1010,7 @@ with q2_tab:
         height=600
     )
     st.plotly_chart(fig_q2_heatmap, use_container_width=True)
-    
+
     st.markdown('<h3 style="color: var(--text-accent); text-align: center;"> تحليلات الربع الثاني</h3>', unsafe_allow_html=True)
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -1029,13 +1040,13 @@ with q2_tab:
         <div class="analysis-card">
             <div class="analysis-title"> ذروة الطوارئ</div>
             <div class="analysis-text">
-                سجل شهر مايو أعلى معدل لحالات النقل الإسعافي (21 حالة)، 
+                سجل شهر مايو أعلى معدل لحالات النقل الإسعافي (16 حالة)، 
                 مما يستدعي تعزيز الخدمات الطبية الطارئة.
             </div>
-            <span class="danger-badge">زيادة 320% في مايو</span>
+            <span class="danger-badge">زيادة 220% في مايو</span>
         </div>
         """, unsafe_allow_html=True)
-    
+
     st.markdown(f"""
     <div class="analysis-card">
         <div class="analysis-title"> المجموع الكلي للربع الثاني</div>
@@ -1048,35 +1059,7 @@ with q2_tab:
 with q3_tab:
     q3_df = st.session_state.health_df.iloc[6:9]
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> إدخال وتحليل بيانات الربع الثالث</h4>', unsafe_allow_html=True)
-    
-    for i, month in enumerate(['يوليو 2025', 'أغسطس 2025', 'سبتمبر 2025']):
-        with st.form(key=f'q3_form_{month}'):
-            st.markdown(f"### بيانات {month}")
-            travelers = st.number_input(f"عدد العابرين ({month})", min_value=0, value=int(q3_df.iloc[i]['عدد العابرين']), step=1)
-            pilgrims = st.number_input(f"عدد المعتمرين ({month})", min_value=0, value=int(q3_df.iloc[i]['عدد المعتمرين']), step=1)
-            hajj = st.number_input(f"عدد الحجاج ({month})", min_value=0, value=int(q3_df.iloc[i]['عدد الحجاج']), step=1)
-            clinic_visits = st.number_input(f"زيارات العيادة ({month})", min_value=0, value=int(q3_df.iloc[i]['زيارات العيادة']), step=1)
-            emergencies = st.number_input(f"حالات النقل الإسعافي ({month})", min_value=0, value=int(q3_df.iloc[i]['حالات النقل الإسعافي وحالات الإشتباه']), step=1)
-            inspections = st.number_input(f"الجولات الإشرافية ({month})", min_value=0, value=int(q3_df.iloc[i]['الجولات الإشرافية']), step=1)
-            polio = st.number_input(f"شلل الأطفال ({month})", min_value=0, value=int(q3_df.iloc[i]['شلل الأطفال']), step=1)
-            meningitis = st.number_input(f"مخية شوكية ({month})", min_value=0, value=int(q3_df.iloc[i]['مخية شوكية']), step=1)
-            triple_viral = st.number_input(f"ثلاثي فيروسي ({month})", min_value=0, value=int(q3_df.iloc[i]['ثلاثي فيروسي']), step=1)
-            submit = st.form_submit_button("حفظ بيانات الشهر")
-            if submit:
-                new_data = {
-                    'عدد العابرين': travelers,
-                    'عدد المعتمرين': pilgrims,
-                    'عدد الحجاج': hajj,
-                    'زيارات العيادة': clinic_visits,
-                    'حالات النقل الإسعافي وحالات الإشتباه': emergencies,
-                    'الجولات الإشرافية': inspections,
-                    'شلل الأطفال': polio,
-                    'مخية شوكية': meningitis,
-                    'ثلاثي فيروسي': triple_viral
-                }
-                update_quarter_data('Q3', 6 + i, new_data)
-                st.success(f"تم تحديث بيانات {month} بنجاح!")
+    st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> تحليل بيانات الربع الثالث</h4>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
@@ -1134,12 +1117,12 @@ with q3_tab:
         fig_q3_medical.add_trace(
             go.Scatter(
                 x=q3_df['الشهر'],
-                y=q3_df['حالات النقل الإسعافي وحالات الإشتباه'],
+                y=q3_df['حالات النقل الإسعافي'],
                 mode='lines+markers',
                 name='النقل الإسعافي',
                 line=dict(color='#BFF8D4', width=3),
                 marker=dict(size=10, color='#80ED99'),
-                text=q3_df['حالات النقل الإسعافي وحالات الإشتباه'].apply(lambda x: f'{x}' if x > 0 else '0'),
+                text=q3_df['حالات النقل الإسعافي'].apply(lambda x: f'{x}' if x > 0 else '0'),
                 textposition='top center'
             ),
             secondary_y=True,
@@ -1154,7 +1137,7 @@ with q3_tab:
         fig_q3_medical.update_yaxes(title_text="زيارات العيادة", secondary_y=False, title_font_color='var(--text-primary)')
         fig_q3_medical.update_yaxes(title_text="النقل الإسعافي", secondary_y=True, title_font_color='var(--text-primary)')
         st.plotly_chart(fig_q3_medical, use_container_width=True)
-    
+
     q3_total = q3_df['المجموع الكلي'].sum()
     st.markdown(f"""
     <div class="analysis-card">
@@ -1165,40 +1148,13 @@ with q3_tab:
         <span class="insight-badge">يوليو - سبتمبر 2025</span>
     </div>
     """, unsafe_allow_html=True)
+    st.markdown('<p style="color: #FFCC00; text-align: center; font-weight: bold;">تنويه: البيانات للربع الثالث غير مكتملة حتى الآن (متاحة حتى أغسطس 2025 فقط، وسبتمبر غير متوفرة بعد).</p>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
 with q4_tab:
     q4_df = st.session_state.health_df.iloc[9:12]
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> إدخال وتحليل بيانات الربع الرابع</h4>', unsafe_allow_html=True)
-    
-    for i, month in enumerate(['أكتوبر 2025', 'نوفمبر 2025', 'ديسمبر 2025']):
-        with st.form(key=f'q4_form_{month}'):
-            st.markdown(f"### بيانات {month}")
-            travelers = st.number_input(f"عدد العابرين ({month})", min_value=0, value=int(q4_df.iloc[i]['عدد العابرين']), step=1)
-            pilgrims = st.number_input(f"عدد المعتمرين ({month})", min_value=0, value=int(q4_df.iloc[i]['عدد المعتمرين']), step=1)
-            hajj = st.number_input(f"عدد الحجاج ({month})", min_value=0, value=int(q4_df.iloc[i]['عدد الحجاج']), step=1)
-            clinic_visits = st.number_input(f"زيارات العيادة ({month})", min_value=0, value=int(q4_df.iloc[i]['زيارات العيادة']), step=1)
-            emergencies = st.number_input(f"حالات النقل الإسعافي ({month})", min_value=0, value=int(q4_df.iloc[i]['حالات النقل الإسعافي وحالات الإشتباه']), step=1)
-            inspections = st.number_input(f"الجولات الإشرافية ({month})", min_value=0, value=int(q4_df.iloc[i]['الجولات الإشرافية']), step=1)
-            polio = st.number_input(f"شلل الأطفال ({month})", min_value=0, value=int(q4_df.iloc[i]['شلل الأطفال']), step=1)
-            meningitis = st.number_input(f"مخية شوكية ({month})", min_value=0, value=int(q4_df.iloc[i]['مخية شوكية']), step=1)
-            triple_viral = st.number_input(f"ثلاثي فيروسي ({month})", min_value=0, value=int(q4_df.iloc[i]['ثلاثي فيروسي']), step=1)
-            submit = st.form_submit_button("حفظ بيانات الشهر")
-            if submit:
-                new_data = {
-                    'عدد العابرين': travelers,
-                    'عدد المعتمرين': pilgrims,
-                    'عدد الحجاج': hajj,
-                    'زيارات العيادة': clinic_visits,
-                    'حالات النقل الإسعافي وحالات الإشتباه': emergencies,
-                    'الجولات الإشرافية': inspections,
-                    'شلل الأطفال': polio,
-                    'مخية شوكية': meningitis,
-                    'ثلاثي فيروسي': triple_viral
-                }
-                update_quarter_data('Q4', 9 + i, new_data)
-                st.success(f"تم تحديث بيانات {month} بنجاح!")
+    st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> تحليل بيانات الربع الرابع</h4>', unsafe_allow_html=True)
     
     col1, col2 = st.columns(2)
     with col1:
@@ -1256,12 +1212,12 @@ with q4_tab:
         fig_q4_medical.add_trace(
             go.Scatter(
                 x=q4_df['الشهر'],
-                y=q4_df['حالات النقل الإسعافي وحالات الإشتباه'],
+                y=q4_df['حالات النقل الإسعافي'],
                 mode='lines+markers',
                 name='النقل الإسعافي',
                 line=dict(color='#BFF8D4', width=3),
                 marker=dict(size=10, color='#80ED99'),
-                text=q4_df['حالات النقل الإسعافي وحالات الإشتباه'].apply(lambda x: f'{x}' if x > 0 else '0'),
+                text=q4_df['حالات النقل الإسعافي'].apply(lambda x: f'{x}' if x > 0 else '0'),
                 textposition='top center'
             ),
             secondary_y=True,
@@ -1276,7 +1232,7 @@ with q4_tab:
         fig_q4_medical.update_yaxes(title_text="زيارات العيادة", secondary_y=False, title_font_color='var(--text-primary)')
         fig_q4_medical.update_yaxes(title_text="النقل الإسعافي", secondary_y=True, title_font_color='var(--text-primary)')
         st.plotly_chart(fig_q4_medical, use_container_width=True)
-    
+
     q4_total = q4_df['المجموع الكلي'].sum()
     st.markdown(f"""
     <div class="analysis-card">
@@ -1284,24 +1240,346 @@ with q4_tab:
         <div class="analysis-text">
             المجموع الكلي: {q4_total:,}
         </div>
-        <span class="insight-badge">أكتوبر - ديسمبر 2025</spa>
-            </div>
+        <span class="insight-badge">أكتوبر - ديسمبر 2025</span>
+    </div>
     """, unsafe_allow_html=True)
+    st.markdown('<p style="color: #FFCC00; text-align: center; font-weight: bold;">تنويه: لا توجد بيانات متاحة للربع الرابع حتى الآن (أكتوبر إلى ديسمبر 2025 غير متوفرة بعد).</p>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
-# Measurement Panels (Three-Dimensional)
+
+# Travelers by entry point
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-st.markdown('<div class="chart-title"> (لوحات القياس)</div>', unsafe_allow_html=True)
+st.markdown('<div class="chart-title"> العابرين حسب نقطة الدخول</div>', unsafe_allow_html=True)
 
-# Calculating values for measurement panels
-clinic_efficiency = filtered_df['زيارات العيادة'].sum() / max(1, filtered_df['عدد العابرين'].sum()) * 100
-emergency_response = filtered_df['حالات النقل الإسعافي وحالات الإشتباه'].sum() / max(1, filtered_df['زيارات العيادة'].sum()) * 100
-vaccination_rate = filtered_df['مجموع التطعيمات'].sum() / max(1, filtered_df['عدد العابرين'].sum()) * 100
-inspection_efficiency = filtered_df['الجولات الإشرافية'].sum() / 12 * 100
+col1, col2 = st.columns(2)
+with col1:
+    st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> عدد العابرين حسب نقطة الدخول</h4>', unsafe_allow_html=True)
+    fig_travelers_entry = go.Figure()
+    fig_travelers_entry.add_trace(go.Bar(
+        x=filtered_df['الشهر'],
+        y=filtered_df['عدد العابرين الوديعة'],
+        name='الوديعة',
+        marker_color='#22577A',
+        text=filtered_df['عدد العابرين الوديعة'].apply(lambda x: f'{x:,}' if x > 0 else '0'),
+        textposition='auto',
+        hovertemplate='الشهر: %{x}<br>الوديعة: %{y:,}<extra></extra>'
+    ))
+    fig_travelers_entry.add_trace(go.Bar(
+        x=filtered_df['الشهر'],
+        y=filtered_df['عدد العابرين الخضراء'],
+        name='الخضراء',
+        marker_color='#38A3A5',
+        text=filtered_df['عدد العابرين الخضراء'].apply(lambda x: f'{x:,}' if x > 0 else '0'),
+        textposition='auto',
+        hovertemplate='الشهر: %{x}<br>الخضراء: %{y:,}<extra></extra>'
+    ))
+    fig_travelers_entry.add_trace(go.Bar(
+        x=filtered_df['الشهر'],
+        y=filtered_df['عدد العابرين المطار'],
+        name='المطار',
+        marker_color='#57CC99',
+        text=filtered_df['عدد العابرين المطار'].apply(lambda x: f'{x:,}' if x > 0 else '0'),
+        textposition='auto',
+        hovertemplate='الشهر: %{x}<br>المطار: %{y:,}<extra></extra>'
+    ))
+    fig_travelers_entry.update_layout(
+        barmode='stack',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font_family='Cairo',
+        font_color='var(--text-primary)',
+        yaxis_title='عدد العابرين',
+        height=600,
+        transition={'duration': 1000, 'easing': 'cubic-in-out'}
+    )
+    st.plotly_chart(fig_travelers_entry, use_container_width=True)
+
+with col2:
+    st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> زيارات العيادة حسب نقطة الدخول</h4>', unsafe_allow_html=True)
+    fig_clinic_entry = go.Figure()
+    fig_clinic_entry.add_trace(go.Bar(
+        x=filtered_df['الشهر'],
+        y=filtered_df['عيادة الطبيب الوديعة'],
+        name='عيادة الوديعة',
+        marker_color='#2794EB',
+        text=filtered_df['عيادة الطبيب الوديعة'].apply(lambda x: f'{x:,}' if x > 0 else '0'),
+        textposition='auto',
+        hovertemplate='الشهر: %{x}<br>عيادة الوديعة: %{y:,}<extra></extra>'
+    ))
+    fig_clinic_entry.add_trace(go.Bar(
+        x=filtered_df['الشهر'],
+        y=filtered_df['عيادة الطبيب المطار'],
+        name='عيادة المطار',
+        marker_color='#80ED99',
+        text=filtered_df['عيادة الطبيب المطار'].apply(lambda x: f'{x:,}' if x > 0 else '0'),
+        textposition='auto',
+        hovertemplate='الشهر: %{x}<br>عيادة المطار: %{y:,}<extra></extra>'
+    ))
+    fig_clinic_entry.update_layout(
+        barmode='group',
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font_family='Cairo',
+        font_color='var(--text-primary)',
+        yaxis_title='عدد الزيارات',
+        height=600,
+        transition={'duration': 1000, 'easing': 'cubic-in-out'}
+    )
+    st.plotly_chart(fig_clinic_entry, use_container_width=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Correlation analysis
+if show_correlations:
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown('<div class="chart-title"> تحليل الارتباط</div>', unsafe_allow_html=True)
+    
+    correlation_matrix = filtered_df[['عدد العابرين', 'عدد المعتمرين', 'عدد الحجاج', 
+                                     'زيارات العيادة', 'حالات النقل الإسعافي', 'مجموع التطعيمات',
+                                     'عدد العابرين الوديعة', 'عدد العابرين الخضراء', 
+                                     'عدد العابرين المطار', 'عيادة الطبيب الوديعة', 
+                                     'عيادة الطبيب المطار']].corr()
+    
+    fig_correlation = go.Figure(data=go.Heatmap(
+        z=correlation_matrix.values,
+        x=correlation_matrix.columns,
+        y=correlation_matrix.index,
+        colorscale=[[0, '#22577A'], [0.5, '#38A3A5'], [1, '#57CC99']],
+        text=correlation_matrix.values.round(2),
+        texttemplate="%{text}",
+        textfont={"size": 12, "color": "white"},
+        hoverongaps=False,
+        hovertemplate='المتغير 1: %{x}<br>المتغير 2: %{y}<br>الارتباط: %{z:.2f}<extra></extra>'
+    ))
+    fig_correlation.update_layout(
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font_family='Cairo',
+        font_color='var(--text-primary)',
+        height=600
+    )
+    st.plotly_chart(fig_correlation, use_container_width=True)
+    
+    st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> رؤى الارتباط</h4>', unsafe_allow_html=True)
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(f"""
+        <div class="analysis-card">
+            <div class="analysis-title"> العابرين والتطعيمات</div>
+            <div class="analysis-text">
+                ارتباط قوي بين عدد العابرين ومجموع التطعيمات 
+                (معامل الارتباط: {correlation_matrix.loc['عدد العابرين', 'مجموع التطعيمات']:.2f})، 
+                مما يشير إلى أن زيادة العابرين ترتبط بزيادة التطعيمات.
+            </div>
+            <span class="insight-badge">ارتباط إيجابي قوي</span>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div class="analysis-card">
+            <div class="analysis-title"> زيارات العيادة والطوارئ</div>
+            <div class="analysis-text">
+                ارتباط معتدل بين زيارات العيادة وحالات النقل الإسعافي 
+                (معامل الارتباط: {correlation_matrix.loc['زيارات العيادة', 'حالات النقل الإسعافي']:.2f})، 
+                مما يعكس الحاجة إلى تعزيز الخدمات الطبية.
+            </div>
+            <span class="warning-badge">ارتباط معتدل</span>
+        </div>
+        """, unsafe_allow_html=True)
+    with col3:
+        st.markdown(f"""
+        <div class="analysis-card">
+            <div class="analysis-title"> العابرين والمعتمرين</div>
+            <div class="analysis-text">
+                ارتباط قوي بين عدد العابرين والمعتمرين 
+                (معامل الارتباط: {correlation_matrix.loc['عدد العابرين', 'عدد المعتمرين']:.2f})، 
+                مما يعكس تأثير موسم العمرة على حركة العابرين.
+            </div>
+            <span class="insight-badge">ارتباط موسمي</span>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Predictive analysis
+if show_predictions:
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown('<div class="chart-title"> تحليلات تنبؤية</div>', unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> تنبؤ العابرين</h4>', unsafe_allow_html=True)
+        months = filtered_df['الشهر']
+        travelers = filtered_df['عدد العابرين'].values
+        future_months = ['أكتوبر 2025', 'نوفمبر 2025', 'ديسمبر 2025']
+        predicted_travelers = [travelers[-1] * (1 + i * 0.05) for i in range(1, 4)]
+        all_months = list(months) + future_months
+        all_travelers = list(travelers) + predicted_travelers
+        
+        fig_pred_travelers = go.Figure()
+        fig_pred_travelers.add_trace(go.Scatter(
+            x=months,
+            y=travelers,
+            mode='lines+markers',
+            name='العابرين (الفعلي)',
+            line=dict(color='#22577A', width=4),
+            marker=dict(size=12),
+            text=[f'{x:,}' if x > 0 else '0' for x in travelers],
+            textposition='top center'
+        ))
+        fig_pred_travelers.add_trace(go.Scatter(
+            x=future_months,
+            y=predicted_travelers,
+            mode='lines+markers',
+            name='العابرين (التنبؤ)',
+            line=dict(color='#57CC99', width=4, dash='dash'),
+            marker=dict(size=12),
+            text=[f'{x:,.0f}' for x in predicted_travelers],
+            textposition='top center'
+        ))
+        fig_pred_travelers.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font_family='Cairo',
+            font_color='var(--text-primary)',
+            yaxis_title='عدد العابرين',
+            height=600
+        )
+        st.plotly_chart(fig_pred_travelers, use_container_width=True)
+    
+    with col2:
+        st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> تنبؤ التطعيمات</h4>', unsafe_allow_html=True)
+        vaccinations = filtered_df['مجموع التطعيمات'].values
+        predicted_vaccinations = [vaccinations[-1] * (1 + i * 0.03) for i in range(1, 4)]
+        all_vaccinations = list(vaccinations) + predicted_vaccinations
+        
+        fig_pred_vaccinations = go.Figure()
+        fig_pred_vaccinations.add_trace(go.Scatter(
+            x=months,
+            y=vaccinations,
+            mode='lines+markers',
+            name='التطعيمات (الفعلي)',
+            line=dict(color='#38A3A5', width=4),
+            marker=dict(size=12),
+            text=[f'{x:,}' if x > 0 else '0' for x in vaccinations],
+            textposition='top center'
+        ))
+        fig_pred_vaccinations.add_trace(go.Scatter(
+            x=future_months,
+            y=predicted_vaccinations,
+            mode='lines+markers',
+            name='التطعيمات (التنبؤ)',
+            line=dict(color='#80ED99', width=4, dash='dash'),
+            marker=dict(size=12),
+            text=[f'{x:,.0f}' for x in predicted_vaccinations],
+            textposition='top center'
+        ))
+        fig_pred_vaccinations.update_layout(
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font_family='Cairo',
+            font_color='var(--text-primary)',
+            yaxis_title='عدد التطعيمات',
+            height=600
+        )
+        st.plotly_chart(fig_pred_vaccinations, use_container_width=True)
+    
+    st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> رؤى تنبؤية</h4>', unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f"""
+        <div class="analysis-card">
+            <div class="analysis-title"> توقعات العابرين</div>
+            <div class="analysis-text">
+                من المتوقع أن يرتفع عدد العابرين بنسبة 5% شهريًا في الربع الرابع، 
+                ليصل إلى حوالي {predicted_travelers[-1]:,.0f} في ديسمبر 2025.
+            </div>
+            <span class="insight-badge">توقعات إيجابية</span>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div class="analysis-card">
+            <div class="analysis-title"> توقعات التطعيمات</div>
+            <div class="analysis-text">
+                من المتوقع أن تزداد التطعيمات بنسبة 3% شهريًا، 
+                لتصل إلى حوالي {predicted_vaccinations[-1]:,.0f} في ديسمبر 2025.
+            </div>
+            <span class="insight-badge">نمو مطرد</span>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Clustering analysis
+if show_clusters:
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+    st.markdown('<div class="chart-title"> تحليل التجميع</div>', unsafe_allow_html=True)
+    
+    cluster_data = filtered_df[['عدد العابرين', 'مجموع التطعيمات']].dropna()
+    kmeans = KMeans(n_clusters=3, random_state=42)
+    cluster_data['Cluster'] = kmeans.fit_predict(cluster_data)
+    
+    fig_clusters = go.Figure()
+    for cluster in range(3):
+        cluster_subset = cluster_data[cluster_data['Cluster'] == cluster]
+        fig_clusters.add_trace(go.Scatter(
+            x=cluster_subset['عدد العابرين'],
+            y=cluster_subset['مجموع التطعيمات'],
+            mode='markers',
+            name=f'المجموعة {cluster + 1}',
+            marker=dict(size=15, color=['#22577A', '#38A3A5', '#57CC99'][cluster], opacity=0.7),
+            text=filtered_df.loc[cluster_subset.index, 'الشهر'],
+            hovertemplate='الشهر: %{text}<br>العابرين: %{x:,}<br>التطعيمات: %{y:,}<extra></extra>'
+        ))
+    fig_clusters.update_layout(
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font_family='Cairo',
+        font_color='var(--text-primary)',
+        xaxis_title='عدد العابرين',
+        yaxis_title='مجموع التطعيمات',
+        height=600
+    )
+    st.plotly_chart(fig_clusters, use_container_width=True)
+    
+    st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> رؤى التجميع</h4>', unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f"""
+        <div class="analysis-card">
+            <div class="analysis-title"> المجموعة 1: نشاط مرتفع</div>
+            <div class="analysis-text">
+                تشمل الأشهر ذات العدد الكبير من العابرين والتطعيمات (مثل يناير وفبراير)، 
+                مما يعكس الذروة الموسمية.
+            </div>
+            <span class="insight-badge">نشاط موسمي مرتفع</span>
+        </div>
+        """, unsafe_allow_html=True)
+    with col2:
+        st.markdown(f"""
+        <div class="analysis-card">
+            <div class="analysis-title"> المجموعة 2: نشاط منخفض</div>
+            <div class="analysis-text">
+                تشمل الأشهر ذات العدد المنخفض من العابرين والتطعيمات (مثل أغسطس)، 
+                مما يعكس الهدوء الموسمي.
+            </div>
+            <span class="warning-badge">نشاط منخفض</span>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# Gauge charts for key metrics
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+st.markdown('<div class="chart-title"> لوحات القياس</div>', unsafe_allow_html=True)
 
 col1, col2, col3, col4 = st.columns(4)
 
-# Creating data for three-dimensional shapes
 months = filtered_df['الشهر']
 month_indices = list(range(len(months)))
 
@@ -1430,11 +1708,12 @@ with col4:
     st.plotly_chart(fig_inspection_3d, use_container_width=True, config={'displayModeBar': False})
 
 st.markdown('</div>', unsafe_allow_html=True)
-# Performance indicators (Gauges)
-linic_efficiency = min(filtered_df['زيارات العيادة'].mean() / 1000 * 100, 100) if filtered_df['زيارات العيادة'].mean() > 0 else 0
-emergency_response = min(filtered_df['حالات النقل الإسعافي وحالات الإشتباه'].mean() / 10 * 100, 100) if filtered_df['حالات النقل الإسعافي وحالات الإشتباه'].mean() > 0 else 0
-vaccination_rate = min(filtered_df['مجموع التطعيمات'].mean() / filtered_df['عدد العابرين'].mean() * 100, 100) if filtered_df['عدد العابرين'].mean() > 0 else 0
-inspection_efficiency = min(filtered_df['الجولات الإشرافية'].mean() / 12 * 100, 100) if filtered_df['الجولات الإشرافية'].mean() > 0 else 0
+
+# Gauge charts calculations (fixed)
+clinic_efficiency = min((filtered_df['زيارات العيادة'].sum() / max(1, filtered_df['عدد العابرين'].sum())) * 100, 100)
+emergency_response = min((filtered_df['حالات النقل الإسعافي وحالات الإشتباه'].sum() / max(1, filtered_df['زيارات العيادة'].sum())) * 100, 100)
+vaccination_rate = min((filtered_df['مجموع التطعيمات'].sum() / max(1, filtered_df['عدد العابرين'].sum())) * 100, 100)
+inspection_efficiency = min((filtered_df['الجولات الإشرافية'].sum() / max(1, len(filtered_df) * 2)) * 100, 100)  # Assuming target of 2 inspections per month
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -1562,175 +1841,85 @@ with col4:
     )
     st.plotly_chart(fig_gauge_inspection, use_container_width=True, config={'displayModeBar': False})
 
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+
+# Key metrics for entry points
+st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+st.markdown('<div class="chart-title"> المؤشرات الرئيسية لنقاط الدخول</div>', unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-value">{filtered_df['عدد العابرين الوديعة'].sum():,}</div>
+        <div class="metric-label">إجمالي العابرين - الوديعة</div>
+        <div class="metric-status insight-badge">مستقر</div>
+    </div>
+    """, unsafe_allow_html=True)
+with col2:
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-value">{filtered_df['عدد العابرين الخضراء'].sum():,}</div>
+        <div class="metric-label">إجمالي العابرين - الخضراء</div>
+        <div class="metric-status insight-badge">مستقر</div>
+    </div>
+    """, unsafe_allow_html=True)
+with col3:
+    st.markdown(f"""
+    <div class="metric-card">
+        <div class="metric-value">{filtered_df['عدد العابرين المطار'].sum():,}</div>
+        <div class="metric-label">إجمالي العابرين - المطار</div>
+        <div class="metric-status insight-badge">مستقر</div>
+    </div>
+    """, unsafe_allow_html=True)
+
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Advanced Analytics
-if show_predictions or show_correlations or show_clusters:
-    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown('<div class="chart-title"> التحليلات المتقدمة</div>', unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if show_predictions:
-            st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> توقعات عدد العابرين</h4>', unsafe_allow_html=True)
-            months = filtered_df['الشهر']
-            travelers = filtered_df['عدد العابرين'].values
-            if len(travelers) >= 3:
-                future_months = ['المتوقع ' + m for m in months[-3:]]
-                predicted_travelers = travelers[-3:] * 1.1  # Assuming a 10% increase
-                fig_predictions = go.Figure()
-                fig_predictions.add_trace(go.Scatter(
-                    x=months,
-                    y=travelers,
-                    mode='lines+markers',
-                    name='الفعلي',
-                    line=dict(color='#22577A', width=4),
-                    marker=dict(size=10)
-                ))
-                fig_predictions.add_trace(go.Scatter(
-                    x=future_months,
-                    y=predicted_travelers,
-                    mode='lines+markers',
-                    name='المتوقع',
-                    line=dict(color='#80ED99', width=4, dash='dash'),
-                    marker=dict(size=10)
-                ))
-                fig_predictions.update_layout(
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    font_family='Cairo',
-                    font_color='var(--text-primary)',
-                    height=600,
-                    transition={'duration': 1000, 'easing': 'cubic-in-out'}
-                )
-                st.plotly_chart(fig_predictions, use_container_width=True)
-    
-    with col2:
-        if show_correlations:
-            st.markdown('<h4 style="color: var(--text-primary); text-align: center;"> تحليل الارتباط</h4>', unsafe_allow_html=True)
-            corr_matrix = filtered_df[['عدد العابرين', 'عدد المعتمرين', 'عدد الحجاج', 'زيارات العيادة', 'حالات النقل الإسعافي وحالات الإشتباه', 'مجموع التطعيمات']].corr()
-            fig_corr = go.Figure(data=go.Heatmap(
-                z=corr_matrix.values,
-                x=corr_matrix.columns,
-                y=corr_matrix.index,
-                colorscale=[[0, '#22577A'], [0.5, '#38A3A5'], [1, '#BFF8D4']],
-                text=corr_matrix.values.round(2),
-                texttemplate="%{text}",
-                textfont={"size": 14, "color": "white"},
-                hovertemplate='%{x} vs %{y}<br>الارتباط: %{z:.2f}<extra></extra>'
-            ))
-            fig_corr.update_layout(
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                font_family='Cairo',
-                font_color='var(--text-primary)',
-                height=600
-            )
-            st.plotly_chart(fig_corr, use_container_width=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
-# The expectations
-if show_predictions:
-    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
-    st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.markdown('<div class="chart-title"> التوقعات</div>', unsafe_allow_html=True)
-    
-    # Simulating forecasts using the growth rate
-    future_months = ['يناير 2026', 'فبراير 2026', 'مارس 2026']
-    growth_rate = 0.05  # Assuming a growth rate of 5%
-    last_known = filtered_df.iloc[-1][['عدد العابرين', 'عدد المعتمرين', 'زيارات العيادة']].to_dict()
-    predicted_data = {
-        'الشهر': future_months,
-        'عدد العابرين': [int(last_known['عدد العابرين'] * (1 + growth_rate) ** (i + 1)) for i in range(3)],
-        'عدد المعتمرين': [int(last_known['عدد المعتمرين'] * (1 + growth_rate) ** (i + 1)) for i in range(3)],
-        'زيارات العيادة': [int(last_known['زيارات العيادة'] * (1 + growth_rate) ** (i + 1)) for i in range(3)]
-    }
-    predicted_df = pd.DataFrame(predicted_data)
-    
-    fig_predictions = go.Figure()
-    fig_predictions.add_trace(go.Scatter(
-        x=filtered_df['الشهر'],
-        y=filtered_df['عدد العابرين'],
-        mode='lines+markers',
-        name='العابرين (فعلي)',
-        line=dict(color='#22577A', width=3),
-        marker=dict(size=8)
-    ))
-    fig_predictions.add_trace(go.Scatter(
-        x=predicted_df['الشهر'],
-        y=predicted_df['عدد العابرين'],
-        mode='lines+markers',
-        name='العابرين (متوقع)',
-        line=dict(color='#38A3A5', width=3, dash='dash'),
-        marker=dict(size=8)
-    ))
-    fig_predictions.add_trace(go.Scatter(
-        x=filtered_df['الشهر'],
-        y=filtered_df['زيارات العيادة'],
-        mode='lines+markers',
-        name='زيارات العيادة (فعلي)',
-        line=dict(color='#57CC99', width=3),
-        marker=dict(size=8)
-    ))
-    fig_predictions.add_trace(go.Scatter(
-        x=predicted_df['الشهر'],
-        y=predicted_df['زيارات العيادة'],
-        mode='lines+markers',
-        name='زيارات العيادة (متوقع)',
-        line=dict(color='#80ED99', width=3, dash='dash'),
-        marker=dict(size=8)
-    ))
-    fig_predictions.update_layout(
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        font_family='Cairo',
-        font_color='var(--text-primary)',
-        height=600,
-        title='توقعات عدد العابرين وزيارات العيادة لعام 2026',
-        title_font=dict(size=20, color='var(--text-primary)')
-    )
-    st.plotly_chart(fig_predictions, use_container_width=True)
-    
-    st.markdown('<h3 style="color: var(--text-accent); text-align: center;"> رؤى التوقعات</h3>', unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(f"""
-        <div class="analysis-card">
-            <div class="analysis-title"> توقعات العابرين</div>
-            <div class="analysis-text">
-                من المتوقع أن ينمو عدد العابرين بنسبة 5% شهريًا في 2026، 
-                مما يتطلب تعزيز الموارد في المنافذ.
-            </div>
-            <span class="insight-badge">نمو متوقع</span>
+# Final summary
+st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+st.markdown('<div class="chart-container">', unsafe_allow_html=True)
+st.markdown('<div class="chart-title"> ملخص الأداء السنوي</div>', unsafe_allow_html=True)
+
+col1, col2, col3 = st.columns(3)
+with col1:
+    st.markdown(f"""
+    <div class="analysis-card">
+        <div class="analysis-title"> إجمالي العابرين</div>
+        <div class="analysis-text">
+            تم تسجيل {filtered_df['عدد العابرين'].sum():,} عابر خلال الفترة، مع ذروة في فبراير وأدنى مستوى في أغسطس.
         </div>
-        """, unsafe_allow_html=True)
-    with col2:
-        st.markdown(f"""
-        <div class="analysis-card">
-            <div class="analysis-title"> توقعات زيارات العيادة</div>
-            <div class="analysis-text">
-                زيارات العيادة ستتبع نموًا مشابهًا بنسبة 5%، 
-                مما يشير إلى الحاجة إلى زيادة الطاقم الطبي.
-            </div>
-            <span class="warning-badge">تخطيط مطلوب</span>
+        <span class="insight-badge">نشاط موسمي</span>
+    </div>
+    """, unsafe_allow_html=True)
+with col2:
+    st.markdown(f"""
+    <div class="analysis-card">
+        <div class="analysis-title"> إجمالي التطعيمات</div>
+        <div class="analysis-text">
+            تم إعطاء {filtered_df['مجموع التطعيمات'].sum():,} جرعة تطعيم، مع تركيز على شلل الأطفال.
         </div>
-        """, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+        <span class="insight-badge">أداء قوي</span>
+    </div>
+    """, unsafe_allow_html=True)
+with col3:
+    st.markdown(f"""
+    <div class="analysis-card">
+        <div class="analysis-title"> حالات الطوارئ</div>
+        <div class="analysis-text">
+            تم التعامل مع {filtered_df['حالات النقل الإسعافي'].sum()} حالة طوارئ، مع ذروة في مايو.
+        </div>
+        <span class="danger-badge">يحتاج متابعة</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# Footer
 st.markdown("""
-<div style="text-align: center; padding: 1rem; color: var(--text-secondary);">
-    <p>لوحة المعلومات الصحية الشاملة 2025 - مكتب هيئة الصحة العامة بنجران</p>
-    <p>تم التطوير بواسطة فريق التحليلات الصحية</p>
+<div style='text-align: center; padding: 1rem; color: var(--text-secondary);'>
+    <hr class="section-divider">
+    <p>© 2025 هيئة الصحة العامة - نجران. جميع الحقوق محفوظة.</p>
+    <p>تم تطوير لوحة المعلومات باستخدام Streamlit و Plotly.</p>
 </div>
 """, unsafe_allow_html=True)
-# Data update notification
-st.markdown("""
-<div style="position: fixed; bottom: 20px; left: 20px; background: var(--glass-bg); backdrop-filter: blur(15px); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 1rem; box-shadow: var(--shadow-glow); font-size: 0.9rem; color: var(--text-secondary);">
-     آخر تحديث: {}
-</div>
-""".format(datetime.now().strftime("%Y-%m-%d %H:%M:%S")), unsafe_allow_html=True)
-# Cleaning the memory
-st.session_state.health_df = st.session_state.health_df.fillna(0)
 
